@@ -1,5 +1,8 @@
 package fr.istic.tlc.services;
 
+import org.jboss.logging.Logger;
+
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -39,6 +42,8 @@ import net.fortuna.ical4j.util.UidGenerator;
 @ApplicationScoped
 public class SendEmail {
 
+	private static final Logger LOG = Logger.getLogger(SendEmail.class);
+
 	@Inject
 	Mailer mailer;
 
@@ -48,6 +53,9 @@ public class SendEmail {
 	@ConfigProperty(name = "doodle.organizermail")
 	String organizermail= "test@test.fr";
 	public void sendASimpleEmail(Poll p )  {
+
+		LOG.infof("Start email request with Poll: %s", p);
+
 		// Create a default MimeMessage object.
 		System.setProperty("net.fortuna.ical4j.timezone.cache.impl", MapTimeZoneCache.class.getName());
 
@@ -70,12 +78,17 @@ public class SendEmail {
 				"Un salon a été créé de discussion pour cette réunion est accessible à cette adresse <a [href]=\" " +p.getTlkURL() + "\" target=\"_blank\">" + p.getTlkURL() + "</a>.<BR>\n" + 
 				"Un pad a été créé pour cette réunion <a [href]=\""+ p.getPadURL() + "\" target=\"_blank\">\""+ p.getPadURL() + "\"</a>.</span><BR>\n");
 		
+		LOG.infof("Preparing to send email with subject: %s, to: %s", m.getSubject(), m.getTo());
+
 		mailer.send(m);
 		
+		LOG.info("Email sent successfully");
 	}
 
 	
 	public String getICS1(Date start, Date end, String libelle, List<String> attendees, String organizer) {
+
+		LOG.infof("Generating ICS for event: %s, start: %s, end: %s, organizer: %s", libelle, start, end, organizer);
 
 		// Create a TimeZone
 		TimeZoneRegistry registry = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -100,7 +113,8 @@ public class SendEmail {
 			Attendee p1 = new Attendee(URI.create("mailto:"+attendee));
 			p1.getParameters().add(Role.REQ_PARTICIPANT);
 //			dev1.getParameters().add(new Cn("Developer 1"));
-			meeting.getProperties().add(p1);			
+			meeting.getProperties().add(p1);
+			LOG.infof("Added attendee: %s", attendee);			
 		}
 		Organizer p1 = new Organizer(URI.create("mailto:"+organizer));
 		meeting.getProperties().add(p1);	
@@ -117,6 +131,7 @@ public class SendEmail {
 		// Add the event and print
 		icsCalendar.getComponents().add(meeting);
 				
+		LOG.info("ICS generation completed");
 		return icsCalendar.toString();
 	}
 

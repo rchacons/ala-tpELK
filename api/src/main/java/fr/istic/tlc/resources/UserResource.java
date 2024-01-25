@@ -1,5 +1,7 @@
 package fr.istic.tlc.resources;
 
+import org.jboss.logging.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,8 @@ import io.quarkus.panache.common.Sort;
 @RequestMapping("/api")
 public class UserResource {
 
+	private static final Logger LOG = Logger.getLogger(UserResource.class);
+
 	@Autowired
 	ChoiceRepository choiceRepository;
 	@Autowired
@@ -38,27 +42,40 @@ public class UserResource {
 
 	@GetMapping("/users")
 	public ResponseEntity<List<User>> retrieveAllUsers() {
+		LOG.info("Retrieve all users request");
 		// On récupère tous les utilisateurs qu'on trie ensuite par username
 		List<User> users = userRepository.findAll(Sort.by( "username", Sort.Direction.Ascending)).list();
+		
+		LOG.infof("Found %d users", users.size());
+		
 		return new ResponseEntity<>(users, HttpStatus.OK);
 	}
 
 	@GetMapping("/users/{idUser}")
 	public ResponseEntity<User> retrieveUser(@PathVariable long idUser) {
+		
+		LOG.infof("Retrieving user with ID: %d", idUser);
+		
 		// On vérifie que l'utilisateur existe
 		User user = userRepository.findById(idUser);
 		if (user== null) {
+			LOG.warnf("User with ID: %d not found", idUser);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+		LOG.infof("Found user: %s", user);
 		return new ResponseEntity<>(user, HttpStatus.OK);
 	}
 
 	@GetMapping("/polls/{slug}/users")
 	public ResponseEntity<List<User>> getAllUserFromPoll(@PathVariable String slug) {
+		
+		LOG.infof("Retrieving all users from poll with slug: %s", slug);
+
 		List<User> users = new ArrayList<>();
 		// On vérifie que le poll existe
 		Poll poll = pollRepository.findBySlug(slug);
 		if (poll== null) {
+			LOG.warnf("Poll with slug: %s not found", slug);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		// On parcours les choix du poll pour récupérer les users ayant voté
@@ -74,14 +91,20 @@ public class UserResource {
 				}
 			}
 		}
+
+		LOG.infof("Found %d users who voted", users.size());
 		return new ResponseEntity<>(users, HttpStatus.OK);
 	}
 
 	@DeleteMapping("/users/{idUser}")
 	public ResponseEntity<User> deleteUser(@PathVariable long idUser) {
+
+		LOG.infof("Deleting user with ID: %d", idUser);
+
 		// On vérifie que l'utilisateur existe
 		User user = userRepository.findById(idUser);
 		if (user== null) {
+			LOG.warnf("User with ID: %d not found", idUser);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		// On supprime l'utilisateur de la liste d'utilisateur de chaque choix
@@ -94,6 +117,7 @@ public class UserResource {
 
 		// On supprime l'utilisateur de la bdd
 		userRepository.deleteById(idUser);
+		LOG.info("User deleted successfully");
 		return new ResponseEntity<>(user, HttpStatus.OK);
 	}
 
@@ -101,14 +125,17 @@ public class UserResource {
 	public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
 		// On sauvegarde l'utilisateur dans la bdd
 		userRepository.persist(user);
+		LOG.infof("User created with ID: %d", user.getId());
 		return new ResponseEntity<>(user, HttpStatus.CREATED);
 	}
 
 	@PutMapping("/users/{idUser}")
 	public ResponseEntity<User> updateUser(@PathVariable long idUser, @Valid @RequestBody User user) {
+		LOG.infof("Updating user with ID: %d", idUser);
 		// On vérifie que l'utilisateur existe
 		User optionalUser = userRepository.findById(idUser);
 		if (optionalUser== null) {
+			LOG.warnf("User with ID: %d not found", idUser);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		// On met le bon id sur l'utilisateur
@@ -118,6 +145,8 @@ public class UserResource {
 		}
 		// On update l'utilisateur dans la bdd
 		User updatedUser = userRepository.getEntityManager().merge(ancientUser);
+		
+		LOG.infof("User updated with ID: %d", updatedUser.getId());
 		return new ResponseEntity<>(updatedUser, HttpStatus.OK);
 	}
 }
