@@ -1,6 +1,7 @@
 package fr.istic.tlc.resources;
 
 import fr.istic.tlc.services.Utils;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 
@@ -30,6 +31,8 @@ import net.gjerull.etherpad.client.EPLiteClient;
 @RequestMapping("/api")
 public class PollResourceEx {
 
+	private static final Logger LOG = Logger.getLogger(PollResourceEx.class);
+
 	@Autowired
 	PollRepository pollRepository;
 
@@ -45,6 +48,7 @@ public class PollResourceEx {
 
 	@GetMapping("/polls")
 	public ResponseEntity<List<Poll>> retrieveAllpolls() {
+		LOG.info("Retrieving all polls");
 		// On récupère la liste de tous les poll qu'on trie ensuite par titre
 		List<Poll> polls = pollRepository.findAll(Sort.by("title", Sort.Direction.Ascending)).list();
 		return new ResponseEntity<>(polls, HttpStatus.OK);
@@ -52,13 +56,19 @@ public class PollResourceEx {
 
 	@GetMapping("/polls/{slug}")
 	public ResponseEntity<Poll> retrievePoll(@PathVariable String slug, @RequestParam(required = false) String token) {
+		
+		LOG.infof("Retrieving poll with slug: %s", slug);
+
+
 		// On vérifie que le poll existe
 		Poll poll = pollRepository.findBySlug(slug);
 		if (poll == null) {
+			LOG.warnf("Poll with slug: %s not found", slug);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		// Si un token est donné, on vérifie qu'il soit bon
 		if (token != null && !poll.getSlugAdmin().equals(token)) {
+			LOG.warn("Unauthorized access attempt");
 			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
 		}
 		poll.setSlugAdmin("");
@@ -67,9 +77,11 @@ public class PollResourceEx {
 
 	@GetMapping("/polls/{slug}/pad")
 	public ResponseEntity<String> retrievePadURL(@PathVariable("slug") String slug) {
+		LOG.infof("Retrieving pad URL for poll with slug: %s", slug);
 		// On vérifie que le poll existe
 		Poll poll = pollRepository.findBySlug(slug);
 		if (poll == null) {
+			LOG.warnf("Pad URL with slug: %s not found", slug);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		return new ResponseEntity<>(poll.getPadURL(), HttpStatus.OK);
@@ -78,6 +90,9 @@ public class PollResourceEx {
 	@DeleteMapping("/polls/{slug}")
 	@Transactional
 	public ResponseEntity<Poll> deletePoll(@PathVariable("slug") String slug, @RequestParam String token) {
+		
+		LOG.infof("Deleting poll with slug: %s", slug);
+		
 		// On vérifie que le poll existe
 		Poll poll = pollRepository.findBySlug(slug);
 		if (poll == null) {
@@ -109,6 +124,7 @@ public class PollResourceEx {
 	@PostMapping("/polls")
 	@Transactional
 	public ResponseEntity<Poll> createPoll(@Valid @RequestBody Poll poll) {
+		LOG.info("Creating new poll");
 		// On enregistre le poll dans la bdd
 		String padId = Utils.getInstance().generateSlug(15);
 		if (this.usePad) {
@@ -127,6 +143,9 @@ public class PollResourceEx {
 	@Transactional
 	public ResponseEntity<Object> updatePoll(@Valid @RequestBody Poll poll, @PathVariable String slug,
 			@RequestParam String token) {
+
+		LOG.infof("Updating poll with slug: %s", slug);
+		
 		// On vérifie que le poll existe
 		Poll optionalPoll = pollRepository.findBySlug(slug);
 		if (optionalPoll == null)
@@ -164,11 +183,15 @@ public class PollResourceEx {
 		client.setText(padId, ancientPad);
 		// On enregistre le poll dans la bdd
 		Poll updatedPoll = pollRepository.getEntityManager().merge(ancientPoll);
+		LOG.info("Poll updated in the database");
+
 		return new ResponseEntity<>(updatedPoll, HttpStatus.OK);
 	}
 
 	private static void initPad(String pollTitle, String pollLocation, String pollDescription, EPLiteClient client,
 			String padId) {
+		LOG.infof("Initializing pad with ID: %s", padId);
+
 		final String str = pollTitle + '\n' + "Localisation : " + pollLocation + '\n' + "Description : "
 				+ pollDescription + '\n';
 		client.setText(padId, str);

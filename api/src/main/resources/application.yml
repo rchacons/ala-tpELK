@@ -6,6 +6,11 @@ doodle:
   organizermail: "olivier.barais@gmail.com"
   tmpfolder: "/tmp/excelFiles"
 quarkus:
+  log:
+    level: DEBUG
+    file:
+      enable: true
+      path: ~/logs/app.log
   datasource:
     db-kind: mysql
     username: tlc
@@ -20,7 +25,7 @@ quarkus:
 #    baseline-on-migrate: true
     database:
       generation: update
-      globally-quoted-identifiers: true
+      globally-quoted-identifiers: true`
   mailer:
     from: test@quarkus.io
 #    host: smtp.sendgrid.net

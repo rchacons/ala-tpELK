@@ -2,6 +2,7 @@ package fr.istic.tlc.resources;
 
 import java.util.HashMap;
 import java.util.List;
+import org.jboss.logging.Logger;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,8 @@ import jakarta.validation.Valid;
 @RequestMapping("/api")
 public class ChoiceResourceEx {
 
+    private static final Logger LOG = Logger.getLogger(ChoiceResourceEx.class);
+
     @Autowired
     ChoiceRepository choiceRepository;
     @Autowired
@@ -38,6 +41,9 @@ public class ChoiceResourceEx {
 
     @GetMapping("/polls/{slug}/choices")
     public ResponseEntity<List<Choice>> retrieveAllChoicesFromPoll(@PathVariable String slug) {
+
+        LOG.infof("Retrieving all choices for poll with slug: %s", slug);
+
         // On vérifie que le choix existe
         Poll poll = pollRepository.findBySlug(slug);
         if (poll == null) {
@@ -49,6 +55,8 @@ public class ChoiceResourceEx {
 
     @GetMapping("/users/{idUser}/choices")
     public ResponseEntity<List<Choice>> retrieveAllChoicesFromUser(@PathVariable long idUser) {
+        LOG.infof("Retrieving all choices for user with ID: %d", idUser);
+
         // On vérifie que l'utilisateur existe
         User user = userRepository.findById(idUser);
         if (user == null) {
@@ -59,6 +67,9 @@ public class ChoiceResourceEx {
 
     @GetMapping("/polls/{slug}/choices/{idChoice}")
     public ResponseEntity<Choice> retrieveChoiceFromPoll(@PathVariable String slug, @PathVariable long idChoice) {
+
+        LOG.infof("Retrieving choice with ID: %d for poll with slug: %s", idChoice, slug);
+
         // On vérifie que le choix et le poll existent
         Poll poll = pollRepository.findBySlug(slug);
         Choice choice = choiceRepository.findById(idChoice);
@@ -74,6 +85,9 @@ public class ChoiceResourceEx {
 
     @GetMapping("/users/{idUser}/choices/{idChoice}")
     public ResponseEntity<Choice> retrieveChoiceFromUser(@PathVariable long idUser, @PathVariable long idChoice) {
+
+        LOG.infof("Retrieving choice with ID: %d for user with ID: %d", idChoice, idUser);
+
         // On vérifie que le choix et l'utilisateur existent
         User user = userRepository.findById(idUser);
         Choice choice = choiceRepository.findById(idChoice);
@@ -89,6 +103,8 @@ public class ChoiceResourceEx {
 
     @DeleteMapping("/polls/{slug}/choices")
     public ResponseEntity<?> deleteChoiceFromPoll(@RequestBody HashMap<String, List<Long>> choices, @PathVariable String slug, @RequestParam String token) {
+        LOG.infof("Deleting choices from poll with slug: %s", slug);
+
         // On vérifie que le poll existe
         List<Long> idchoices = choices.get("choices");
         Poll poll = pollRepository.findBySlug(slug);
@@ -118,11 +134,15 @@ public class ChoiceResourceEx {
                 choiceRepository.deleteById(id);
             }
         }
+        LOG.info("Choices deleted successfully");
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/polls/{slug}/choices")
     public ResponseEntity<List<Choice>> createChoices(@RequestBody List<Choice> choices, @PathVariable String slug, @RequestParam String token) {
+
+        LOG.infof("Creating choices for poll with slug: %s", slug);
+
         // On vérifie que le poll existe
         Poll poll = pollRepository.findBySlug(slug);
         if (poll == null){
@@ -143,6 +163,8 @@ public class ChoiceResourceEx {
 
     @PutMapping("/polls/{slug}/choices/{idChoice}")
     public ResponseEntity<Choice> updateChoice(@Valid @RequestBody Choice choice1, @PathVariable String slug, @PathVariable long idChoice, @RequestParam String token) {
+        LOG.infof("Updating choice with ID: %d for poll with slug: %s", idChoice, slug);
+
         // On vérifie que le poll et le choix existent
         Poll poll = pollRepository.findBySlug(slug);
         Choice choice = choiceRepository.findById(idChoice);
@@ -172,49 +194,64 @@ public class ChoiceResourceEx {
 
     @PostMapping("/polls/{slug}/vote/{idUser}")
     public ResponseEntity<Object> vote(@RequestBody HashMap<String, List<Long>> choices, @PathVariable String slug, @PathVariable long idUser) {
+
+        LOG.infof("Saving User : %d vote for poll with slug: %s", idUser, slug);
+
         // On vérifie que le poll et l'utilisateur existent
         List<Long> idchoices = choices.get("choices");
         Poll poll = pollRepository.findBySlug(slug);
         User user = userRepository.findById(idUser);
         if (poll == null || user == null){
+            LOG.warnf("The User : %d vote or poll with slug: %s does not exist", idUser, slug);
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         for (Long choice : idchoices) {
             // On vérifie que le choice existe
             Choice optchoice = choiceRepository.findById(choice);
             if (optchoice == null){
+                LOG.debugf("The choice %s does not exist", choice);
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
             // On vérifie que le choix appartienne bien au poll
             if(!poll.getPollChoices().contains(optchoice)){
+                LOG.debugf("The choice %s does not belong to the poll %s", choice, poll.getId());
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
             // On vérifie que le user n'ai pas déjà voté pour ce choix
             if(user.getUserChoices().contains(optchoice)){
+                LOG.debugf("User %s has already voted for the choice %s", user.getId(),choice);
                 return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
             }
             // On ajoute le choix à la liste de l'utilisateur et vice versa
             optchoice.addUser(user);
             choiceRepository.getEntityManager().merge(optchoice);
         }
+
+        LOG.infof("Votes of user %s saved correctly", idUser);
+
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/polls/{slug}/choices/{idChoice}/removevote/{idUser}")
     public ResponseEntity<Object> removeVote(@PathVariable String slug, @PathVariable long idChoice, @PathVariable long idUser) {
+        LOG.infof("User with ID: %d is removing vote for choice with ID: %d in poll with slug: %s", idUser, idChoice, slug);
+
         // On vérifie que le poll, le choix et l'utilisateur existent
         Poll poll = pollRepository.findBySlug(slug);
         Choice choice = choiceRepository.findById(idChoice);
         User user = userRepository.findById(idUser);
         if (poll == null || choice == null || user == null){
+            LOG.debugf("The choice %s does not exist", choice);
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         // On vérifie que le choix appartienne bien au poll
         if(!poll.getPollChoices().contains(choice)){
+            LOG.debugf("The choice %s does not belong to the poll %s", choice, poll.getId());
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         // On vérifie que le user ait bien voté pour ce choix
         if(!user.getUserChoices().contains(choice)){
+            LOG.debugf("User %s has already voted for the choice %s", user.getId(),choice);
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         // On retire le choix à la liste de l'utilisateur et vice versa
@@ -223,11 +260,14 @@ public class ChoiceResourceEx {
         user.removeChoice(choice);
         userRepository.getEntityManager().merge(user);
 
+        LOG.infof("Vote of user %s removed correctly", idUser);
+
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @GetMapping("/polls/{slug}/choices/{idChoice}/count")
     public ResponseEntity<Object> numberOfVoteForChoice(@PathVariable String slug, @PathVariable long idChoice){
+        LOG.infof("Counting votes for choice with ID: %d in poll with slug: %s", idChoice, slug);
         // On vérifie que le poll et choix existent
         Poll poll = pollRepository.findBySlug(slug);
         Choice choice = choiceRepository.findById(idChoice);
@@ -238,6 +278,8 @@ public class ChoiceResourceEx {
         if(!poll.getPollChoices().contains(choice)){
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        LOG.infof("Votes found : %s",choice.getUsers().size());
+
         // On compte le nombre de vote pour le choix
         return new ResponseEntity<>(choice.getUsers().size(),HttpStatus.OK);
     }

@@ -1,5 +1,7 @@
 package fr.istic.tlc.resources;
 
+import org.jboss.logging.Logger;
+
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,9 @@ import fr.istic.tlc.domain.User;
 @RestController
 @RequestMapping("/api")
 public class MealPreferenceResource {
+
+    private static final Logger LOG = Logger.getLogger(MealPreferenceResource.class);
+
     @Autowired
     ChoiceRepository choiceRepository;
     @Autowired
@@ -34,6 +39,7 @@ public class MealPreferenceResource {
 
     @GetMapping("polls/{slug}/mealpreferences")
     public ResponseEntity<Object> getAllMealPreferencesFromPoll(@PathVariable String slug) {
+        LOG.infof("Retrieving all meal preferences for poll with slug: %s", slug);
         // On vérifie que le poll existe
         Poll optPoll = pollRepository.findBySlug(slug);
         if(optPoll == null){
@@ -44,6 +50,8 @@ public class MealPreferenceResource {
 
     @GetMapping("polls/{slug}/mealpreference/{idMealPreference}")
     public ResponseEntity<Object> getMealPreferenceFromPoll(@PathVariable String slug, @PathVariable long idMealPreference){
+        LOG.infof("Retrieving meal preference with ID: %d for poll with slug: %s", idMealPreference, slug);
+
         // On vérifie que le poll et la meal preference existe
         Poll optPoll = pollRepository.findBySlug(slug);
         MealPreference optMealPreference = mealPreferenceRepository.findById(idMealPreference);
@@ -52,6 +60,8 @@ public class MealPreferenceResource {
         }
         // On vérifie que la meal preference appartienne bien au poll
         if (!optPoll.getPollMealPreferences().contains(optMealPreference)){
+            LOG.warnf("Meal preference with ID: %d does not belong to poll with slug: %s", idMealPreference, slug);
+
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity<>(optMealPreference,HttpStatus.OK);
@@ -59,6 +69,9 @@ public class MealPreferenceResource {
 
     @PostMapping("polls/{slug}/mealpreference/{idUser}")
     public ResponseEntity<Object> createMealPreference(@Valid @RequestBody MealPreference mealPreference, @PathVariable String slug, @PathVariable long idUser){
+        
+        LOG.infof("Creating meal preference for user with ID: %d in poll with slug: %s", idUser, slug);
+        
         // On vérifie que le poll et le User existe
         Poll poll = pollRepository.findBySlug(slug);
         User user = userRepository.findById(idUser);
@@ -72,6 +85,9 @@ public class MealPreferenceResource {
         // On save la meal preference
         mealPreferenceRepository.persist(mealPreference);
         pollRepository.getEntityManager().merge(poll);
+
+        LOG.info("Meal preference created and added to poll");
+
         return new ResponseEntity<>(mealPreference, HttpStatus.CREATED);
     }
 }

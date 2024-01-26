@@ -1,5 +1,7 @@
 package fr.istic.tlc.resources;
 
+import org.jboss.logging.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +33,8 @@ import fr.istic.tlc.services.SendEmail;
 @Path("/api/poll")
 public class NewPollResourceEx {
 
+	private static final Logger LOG = Logger.getLogger(NewPollResourceEx.class);
+
 	@Inject
 	PollRepository pollRep;
 
@@ -53,9 +57,15 @@ public class NewPollResourceEx {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Poll getPollBySlug(@PathParam("slug") String slug) {
+		
+		LOG.warnf("Poll with slug: %s not found", slug);
 		Poll p = pollRep.findBySlug(slug);
-		if (p != null)
+		if (p != null){
 			p.getPollComments().clear();
+			LOG.info("Poll retrieved and comments cleared");
+		} else{
+			LOG.warnf("Poll with slug: %s not found", slug);
+		}
 		p.setSlugAdmin("");
 		return p;
 	}
@@ -64,6 +74,7 @@ public class NewPollResourceEx {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Poll getPollByASlug(@PathParam("aslug") String aslug) {
+		LOG.infof("Retrieving poll by admin slug: %s", aslug);
 		return pollRep.findByAdminSlug(aslug);
 	}
 
@@ -73,10 +84,14 @@ public class NewPollResourceEx {
 	@Transactional
 	@Produces(MediaType.APPLICATION_JSON)
 	public Comment createComment4Poll(@PathParam("slug") String slug, Comment c) {
+		LOG.infof("Creating comment for poll with slug: %s", slug);
+		
 		this.commentRep.persist(c);
 		Poll p = pollRep.findBySlug(slug);
 		p.addComment(c);
 		this.pollRep.persistAndFlush(p);
+
+		LOG.info("Comment created and added to poll");
 		return c;
 
 	}
@@ -87,14 +102,14 @@ public class NewPollResourceEx {
 	@Transactional
 	@Produces(MediaType.APPLICATION_JSON)
 	public Poll updatePoll(Poll p) {
+		LOG.infof("Updating poll with ID: %d", p.getId());
+
 		System.err.println( "p " + p);
 		Poll p1 = pollRep.findById(p.getId());
 		List<Choice> choicesToRemove = new ArrayList<Choice>();
 		for (Choice c : p1.getPollChoices()) {
 			if (!p.getPollChoices().contains(c)) {
-
 				choicesToRemove.add(c);
-				System.err.println("toremove " + c.getId());
 			}
 
 		}
@@ -117,14 +132,16 @@ public class NewPollResourceEx {
 			}
 			c.getUsers().clear();
 			this.choiceRep.delete(c);
+			LOG.debugf("Choice with ID: %d removed", c.getId());
 
 		}
 
 		for (Choice c : p.getPollChoices()) {
-			System.err.println("tomerge " + c.getId());
+			LOG.debugf("Choice with ID: %d ready for merge", c.getId());
 		}
 
 		Poll p2 = this.pollRep.getEntityManager().merge(p);
+		LOG.infof("Poll %s updated", p2.getId());
 		return p2;
 
 	}
@@ -134,6 +151,9 @@ public class NewPollResourceEx {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Transactional
 	public User addChoiceUser(ChoiceUser userChoice) {
+
+		LOG.infof("Adding choices to user : %s", userChoice.getUsername());
+
 		User u = this.userRep.find("mail", userChoice.getMail()).firstResult();
 		if (u == null) {
 			u = new User();
@@ -155,6 +175,7 @@ public class NewPollResourceEx {
 			c.addUser(u);
 			this.choiceRep.persistAndFlush(c);
 		}
+		LOG.infof("Choices added to user %s",userChoice.getUsername());
 		return u;
 	}
 
@@ -163,6 +184,8 @@ public class NewPollResourceEx {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Transactional
 	public void closePoll(@PathParam("choiceid") String choiceid) {
+
+		LOG.infof("Closing poll: %s", choiceid);
 		Choice c = choiceRep.findById(Long.parseLong(choiceid));
 		Poll p = this.pollRep.find("select p from Poll as p join p.pollChoices as c where c.id= ?1", c.getId())
 				.firstResult();
@@ -170,6 +193,8 @@ public class NewPollResourceEx {
 		p.setSelectedChoice(c);
 		this.pollRep.persist(p);
 		this.sendmail.sendASimpleEmail(p);
+		LOG.infof("Poll %s closed and email sent", choiceid);
+
 		// TODO Send Email
 
 	}
@@ -178,9 +203,16 @@ public class NewPollResourceEx {
 	@Path("polls/{slug}/comments")
 	@Produces(MediaType.APPLICATION_JSON)
 	public List<Comment> getAllCommentsFromPoll(@PathParam("slug") String slug) {
+
+		LOG.infof("Retrieving all comments from poll with slug: %s", slug);
 		Poll p = this.pollRep.findBySlug(slug);
-		if (p!= null)
-			return p.getPollComments();
+		if (p!= null){
+			List<Comment> comments = p.getPollComments();
+			LOG.infof("Found %d comments", comments.size());
+			return comments;
+		}
+		
+		LOG.warnf("Poll with slug: %s not found", slug);
 		return null;
 	}
 

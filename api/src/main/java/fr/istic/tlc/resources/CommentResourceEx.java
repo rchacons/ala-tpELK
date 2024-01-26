@@ -1,5 +1,7 @@
 package fr.istic.tlc.resources;
 
+import org.jboss.logging.Logger;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,9 @@ import fr.istic.tlc.domain.Poll;
 @RestController
 @RequestMapping("/api")
 public class CommentResourceEx {
+
+    private static final Logger LOG = Logger.getLogger(CommentResourceEx.class);
+
     @Autowired
     PollRepository pollRepository;
     @Autowired
@@ -33,6 +38,9 @@ public class CommentResourceEx {
 
     @GetMapping("polls/{slug}/comments")
     public ResponseEntity<Object> getAllCommentsFromPoll(@PathVariable String slug) {
+        
+        LOG.infof("Retrieving all comments for poll with slug: %s", slug);
+
         // On vérifie que le poll existe
        Poll optPoll = pollRepository.findBySlug(slug);
         if(optPoll== null){
@@ -43,14 +51,18 @@ public class CommentResourceEx {
 
     @GetMapping("polls/{slug}/comments/{idComment}")
     public ResponseEntity<Object> getCommentFromPoll(@PathVariable String slug, @PathVariable long idComment){
+        LOG.infof("Retrieving comment with ID: %d for poll with slug: %s", idComment, slug);
+
         // On vérifie que le poll et le comment existe
        Poll optPoll = pollRepository.findBySlug(slug);
         Comment optComment = commentRepository.findById(idComment);
         if(optPoll== null || optComment== null){
+            LOG.warnf("Poll with slug: %s or comment with ID: %d not found", slug, idComment);
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         // On vérifie que le comment appartienne bien au poll
         if (!optPoll.getPollComments().contains(optComment)){
+            LOG.warnf("Comment with ID: %d does not belong to poll with slug: %s", idComment, slug);
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity<>(optComment,HttpStatus.OK);
@@ -75,5 +87,6 @@ public class CommentResourceEx {
         }*/
 
 }
+
 
 
